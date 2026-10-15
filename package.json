@@ -29,7 +29,6 @@
     ], "icon": "build/icon.png" },
     "nsis": { "artifactName": "급식쪽지-설치-${version}.${ext}", "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "급식쪽지" },
     "portable": { "artifactName": "급식쪽지-포터블-${version}.${ext}" },
-    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "급식쪽지" },
     "mac": { "target": ["dmg"], "icon": "build/icon.png", "category": "public.app-category.utilities" },
     "linux": { "target": ["AppImage"], "icon": "build/icon.png", "category": "Utility" }
   }
