@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>급식쪽지 설정</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; font-size:13px; color:#333; background:#fff7f9; }
+  .wrap { padding:14px 18px; }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid #e8d4da; margin-bottom:12px; }
+  .tabs button { background:none; border:none; padding:8px 14px; cursor:pointer; font-size:13px; color:#777; border-bottom:2px solid transparent; }
+  .tabs button.on { color:#e85d7a; border-bottom-color:#e85d7a; font-weight:700; }
+  .pane { display:none; } .pane.on { display:block; }
+  fieldset { border:1px solid #e8d4da; border-radius:8px; padding:10px 12px; margin-bottom:12px; background:#fff; }
+  legend { padding:0 6px; color:#a05a6b; font-weight:700; }
+  label { display:block; margin:5px 0; }
+  input[type=text], input[type=password], select { width:100%; padding:7px 9px; border:1px solid #ddc4cb; border-radius:6px; font-size:13px; }
+  input[type=range] { width:75%; vertical-align:middle; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .row > * { flex:1; }
+  .btn { padding:7px 14px; border:1px solid #e85d7a; background:#e85d7a; color:#fff; border-radius:6px; cursor:pointer; font-size:13px; }
+  .btn.ghost { background:#fff; color:#e85d7a; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .list { max-height:200px; overflow:auto; border:1px solid #e8d4da; border-radius:6px; margin-top:8px; background:#fff; }
+  .list div { padding:7px 10px; cursor:pointer; border-bottom:1px solid #f3e6ea; }
+  .list div:hover { background:#ffeef2; }
+  .list small { color:#888; margin-left:6px; }
+  .chosen { margin-top:8px; padding:8px 10px; background:#ffeef2; border-radius:6px; }
+  .allergy { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; }
+  .help { color:#888; font-size:11px; margin-top:4px; }
+  .help a { color:#e85d7a; }
+  .foot { display:flex; justify-content:space-between; align-items:center; margin-top:4px; }
+  .msg { color:#2e8b57; font-size:12px; }
+  .msg.err { color:#c22; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tabs">
+    <button class="on" data-t="key">인증키</button><button data-t="school">학교</button><button data-t="view">표시</button><button data-t="allergy">알레르기</button>
+  </div>
+
+  <div class="pane on" id="p-key">
+    <fieldset><legend>NEIS 인증키</legend>
+      <input type="text" id="apiKey" placeholder="나이스 교육정보 개방포털에서 발급받은 인증키">
+      <div class="help"><a href="#" onclick="api.openExternal('https://open.neis.go.kr/portal/guide/actKeyPage.do');return false">open.neis.go.kr → 인증키 신청</a>에서 무료로 발급받을 수 있어요. 키는 내 컴퓨터에만 저장됩니다.</div>
+    </fieldset>
+  </div>
+
+  <div class="pane" id="p-school">
+    <fieldset><legend>학교 검색</legend>
+      <div class="row"><input type="text" id="q" placeholder="학교 이름 (예: 성덕고)"><button class="btn" id="btnSearch" style="flex:0 0 auto">검색</button></div>
+      <div class="list" id="result" style="display:none"></div>
+      <div class="chosen" id="chosen">선택된 학교 없음</div>
+    </fieldset>
+  </div>
+
+  <div class="pane" id="p-view">
+    <fieldset><legend>표시할 급식</legend>
+      <div class="row"><label><input type="checkbox" id="m1"> 조식</label><label><input type="checkbox" id="m2"> 중식</label><label><input type="checkbox" id="m3"> 석식</label></div>
+    </fieldset>
+    <fieldset><legend>내용</legend>
+      <label>학년 필터 <select id="gradeFilter"><option value="0">전체</option><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select></label>
+      <label><input type="checkbox" id="showCal"> 칼로리 표시</label>
+      <label><input type="checkbox" id="showAllergy"> 모든 알레르기 번호 표시 (끄면 내 알레르기만)</label>
+      <label><input type="checkbox" id="expandOrigin"> 재료·원산지를 처음부터 펼쳐 두기</label>
+    </fieldset>
+    <fieldset><legend>창</legend>
+      <label>포스트잇 색 <select id="color"><option value="pink">핑크</option><option value="yellow">노랑</option><option value="blue">하늘</option><option value="mint">민트</option><option value="green">연두</option></select></label>
+      <label>불투명도 <input type="range" id="opacity" min="40" max="100"> <span id="opv"></span>%</label>
+      <label><input type="checkbox" id="alwaysOnTop"> 항상 위에 표시</label>
+      <label><input type="checkbox" id="showOnStart"> 시작할 때 포스트잇 보이기</label>
+    </fieldset>
+  </div>
+
+  <div class="pane" id="p-allergy">
+    <fieldset><legend>내 알레르기 (해당 메뉴가 빨갛게 표시돼요)</legend>
+      <div class="allergy" id="allergy"></div>
+    </fieldset>
+  </div>
+
+  <div class="foot">
+    <span class="msg" id="msg"></span>
+    <span><button class="btn" id="save">저장</button> <button class="btn ghost" onclick="api.closeSettings()">취소</button></span>
+  </div>
+</div>
+
+<script>
+const ALLERGY = {1:'난류',2:'우유',3:'메밀',4:'땅콩',5:'대두',6:'밀',7:'고등어',8:'게',9:'새우',10:'돼지고기',11:'복숭아',12:'토마토',13:'아황산류',14:'호두',15:'닭고기',16:'쇠고기',17:'오징어',18:'조개류',19:'잣'};
+let cfg, school = null;
+const $ = id => document.getElementById(id);
+
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tabs button, .pane').forEach(e => e.classList.remove('on'));
+  b.classList.add('on'); $('p-' + b.dataset.t).classList.add('on');
+});
+
+$('allergy').innerHTML = Object.entries(ALLERGY).map(([n, k]) => `<label><input type="checkbox" class="al" value="${n}"> ${n}. ${k}</label>`).join('');
+
+function showSchool() { $('chosen').innerHTML = school ? `<b>${school.name}</b> <small>${school.officeName} · ${school.kind}</small><br><small>${school.addr||''}</small>` : '선택된 학교 없음'; }
+
+$('btnSearch').onclick = async () => {
+  const key = $('apiKey').value.trim(), q = $('q').value.trim();
+  if (!key) return msg('인증키 탭에서 인증키를 먼저 입력하세요', true);
+  if (!q) return;
+  $('btnSearch').disabled = true;
+  const r = await api.searchSchool(key, q);
+  $('btnSearch').disabled = false;
+  if (r.error) return msg('검색 실패: ' + r.error, true);
+  const box = $('result'); box.style.display = 'block';
+  box.innerHTML = r.rows.length ? r.rows.map((s, i) => `<div data-i="${i}">${s.name}<small>${s.officeName} · ${s.kind}</small></div>`).join('') : '<div>검색 결과 없음</div>';
+  box.querySelectorAll('div[data-i]').forEach(d => d.onclick = () => { school = r.rows[+d.dataset.i]; showSchool(); box.style.display = 'none'; msg(''); });
+};
+$('q').addEventListener('keydown', e => e.key === 'Enter' && $('btnSearch').click());
+$('opacity').oninput = () => $('opv').textContent = $('opacity').value;
+
+function msg(t, err) { const m = $('msg'); m.textContent = t; m.className = 'msg' + (err ? ' err' : ''); }
+
+$('save').onclick = async () => {
+  const patch = {
+    apiKey: $('apiKey').value.trim(), school,
+    mealTypes: { 1: $('m1').checked, 2: $('m2').checked, 3: $('m3').checked },
+    gradeFilter: +$('gradeFilter').value,
+    showCal: $('showCal').checked, showAllergy: $('showAllergy').checked, expandOrigin: $('expandOrigin').checked,
+    color: $('color').value, opacity: +$('opacity').value,
+    alwaysOnTop: $('alwaysOnTop').checked, showOnStart: $('showOnStart').checked,
+    allergies: [...document.querySelectorAll('.al:checked')].map(c => +c.value),
+  };
+  if (!patch.apiKey) return msg('인증키를 입력하세요', true);
+  if (!patch.school) return msg('학교를 선택하세요', true);
+  await api.setConfig(patch);
+  msg('저장했어요 🎉'); setTimeout(() => api.closeSettings(), 500);
+};
+
+(async () => {
+  cfg = await api.getConfig(); school = cfg.school;
+  $('apiKey').value = cfg.apiKey || ''; showSchool();
+  [1,2,3].forEach(n => $('m'+n).checked = !!cfg.mealTypes[n]);
+  $('gradeFilter').value = cfg.gradeFilter || 0;
+  ['showCal','showAllergy','expandOrigin','alwaysOnTop','showOnStart'].forEach(k => $(k).checked = !!cfg[k]);
+  $('color').value = cfg.color; $('opacity').value = cfg.opacity; $('opv').textContent = cfg.opacity;
+  document.querySelectorAll('.al').forEach(c => c.checked = cfg.allergies.includes(+c.value));
+  if (!cfg.school) document.querySelector('[data-t=school]').click();
+})();
+</script>
+</body>
+</html>

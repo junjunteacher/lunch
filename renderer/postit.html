@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>급식쪽지</title>
+<style>
+  :root { --paper:#ffd6df; --ink:#3b2b33; --sub:#7a6069; --tape:#c9b8ff; --accent:#e85d7a; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { background:transparent; height:100%; overflow:hidden; }
+  body { font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; color:var(--ink); font-size:13px; user-select:none; }
+  #paper { position:relative; margin:14px 8px 8px; padding:16px 14px 12px; min-height:calc(100% - 22px);
+    background:var(--paper); opacity:var(--op,0.92); border-radius:4px;
+    box-shadow:0 6px 18px rgba(0,0,0,.18), inset 0 -30px 40px -40px rgba(0,0,0,.08);
+    -webkit-app-region:drag; }
+  #paper::before { content:''; position:absolute; top:-10px; left:50%; width:70px; height:18px; margin-left:-35px;
+    background:var(--tape); opacity:.85; transform:rotate(-2deg); border-radius:2px; box-shadow:0 1px 3px rgba(0,0,0,.15); }
+  button, a, .nodrag { -webkit-app-region:no-drag; }
+  .head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .nav { background:none; border:none; font-size:16px; cursor:pointer; color:var(--sub); padding:2px 6px; border-radius:6px; }
+  .nav:hover { background:rgba(0,0,0,.07); color:var(--ink); }
+  .date { font-weight:700; font-size:15px; cursor:pointer; padding:2px 8px; border-radius:6px; }
+  .date:hover { background:rgba(0,0,0,.07); }
+  .date.today::after { content:'오늘'; font-size:10px; font-weight:600; color:#fff; background:var(--accent); border-radius:8px; padding:1px 6px; margin-left:6px; vertical-align:middle; }
+  .tools { position:absolute; top:4px; right:6px; display:flex; gap:2px; opacity:0; transition:opacity .2s; }
+  #paper:hover .tools { opacity:1; }
+  .tools button { background:rgba(255,255,255,.6); border:none; width:20px; height:20px; border-radius:50%; cursor:pointer; font-size:11px; color:var(--sub); }
+  .tools button:hover { background:#fff; color:var(--ink); }
+  .meal { margin:8px 0 2px; }
+  .meal h3 { font-size:13px; font-weight:700; margin-bottom:3px; display:flex; align-items:center; gap:4px; }
+  .dish { display:flex; justify-content:space-between; padding:1px 2px; line-height:1.55; border-radius:4px; }
+  .dish small { color:var(--sub); font-size:11px; margin-left:6px; white-space:nowrap; }
+  .dish.warn { color:#d12d4b; font-weight:700; background:rgba(255,255,255,.35); }
+  .cal { font-size:11px; color:var(--sub); text-align:right; margin-top:2px; }
+  .sched { margin-top:10px; border-top:1px dashed rgba(0,0,0,.15); padding-top:8px; }
+  .sched h3 { font-size:12px; margin-bottom:3px; }
+  .ev { line-height:1.5; }
+  .ev small { color:var(--sub); font-size:10px; margin-left:4px; }
+  .foot { display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px; font-size:10px; color:var(--sub); }
+  .foot .warnnote { color:#d12d4b; }
+  .empty { color:var(--sub); padding:10px 0; text-align:center; }
+  .err { color:#b4262a; font-size:11px; background:rgba(255,255,255,.5); padding:6px; border-radius:6px; margin:6px 0; }
+  .more { font-size:11px; color:var(--sub); cursor:pointer; margin-top:6px; background:none; border:none; }
+  .more:hover { color:var(--ink); text-decoration:underline; }
+  .detail { font-size:11px; color:var(--sub); line-height:1.5; margin:4px 0; display:none; }
+  .detail.open { display:block; }
+  /* 달력 */
+  #calendar { display:none; margin:6px 0; background:rgba(255,255,255,.55); border-radius:8px; padding:8px; }
+  #calendar.open { display:block; }
+  .cal-h { display:flex; justify-content:space-between; align-items:center; font-weight:700; margin-bottom:6px; }
+  .grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; text-align:center; }
+  .grid .w { font-size:10px; color:var(--sub); }
+  .grid .d { font-size:12px; padding:4px 0; border-radius:6px; cursor:pointer; position:relative; }
+  .grid .d:hover { background:rgba(0,0,0,.08); }
+  .grid .d.sel { background:var(--accent); color:#fff; }
+  .grid .d.today { outline:1.5px solid var(--accent); }
+  .grid .d.meal::after { content:''; position:absolute; bottom:1px; left:50%; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:var(--accent); }
+  .grid .d.sel.meal::after { background:#fff; }
+  .grid .d.event { text-decoration:underline; text-decoration-color:#7c5cff; text-underline-offset:2px; }
+  .grid .d.sun { color:#d12d4b; } .grid .d.sat { color:#2d6cd1; }
+  .grid .d.sel.sun,.grid .d.sel.sat { color:#fff; }
+  .grid .d.other { opacity:.3; }
+  .brand { font-family:'Nanum Pen Script','Malgun Gothic',cursive; color:#c0304f; border:1.5px double #c0304f; border-radius:3px; padding:0 4px; transform:rotate(-8deg); display:inline-block; font-size:9px; }
+</style>
+</head>
+<body>
+<div id="paper">
+  <div class="tools">
+    <button title="갱신" onclick="load(true)">↻</button>
+    <button title="설정" onclick="api.openSettings()">⚙</button>
+    <button title="숨기기(트레이)" onclick="api.hide()">✕</button>
+  </div>
+  <div class="head">
+    <button class="nav" onclick="move(-1)">‹</button>
+    <div class="date nodrag" id="date" onclick="toggleCal()"></div>
+    <button class="nav" onclick="move(1)">›</button>
+  </div>
+  <div id="calendar" class="nodrag"></div>
+  <div id="body" class="nodrag"></div>
+  <div class="foot">
+    <span id="note"></span>
+    <span id="stamp"><span class="brand">made by junjunT</span></span>
+  </div>
+</div>
+
+<script>
+const COLORS = { pink:['#ffd6df','#c9b8ff','#e85d7a'], yellow:['#fff0a6','#ffb3c6','#d99a00'], blue:['#d4e8ff','#ffd6a5','#2d6cd1'], mint:['#cdf5e6','#ffc8dd','#1f9d6b'], green:['#dcf5c7','#ffd6a5','#4a8f1c'] };
+const ALLERGY = {1:'난류',2:'우유',3:'메밀',4:'땅콩',5:'대두',6:'밀',7:'고등어',8:'게',9:'새우',10:'돼지고기',11:'복숭아',12:'토마토',13:'아황산류',14:'호두',15:'닭고기',16:'쇠고기',17:'오징어',18:'조개류',19:'잣'};
+const MEAL_ICON = { 1:'🌅', 2:'🍚', 3:'🌙' };
+let cfg = null;
+let cur = new Date();             // 보고 있는 날짜
+let calMonth = null;              // 달력 표시 월 Date
+const cache = {};                 // key → data
+
+const ymd = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+const ym = d => ymd(d).slice(0,6);
+const isToday = d => ymd(d) === ymd(new Date());
+const W = ['일','월','화','수','목','금','토'];
+
+function applyTheme() {
+  const [paper, tape, accent] = COLORS[cfg.color] || COLORS.pink;
+  const r = document.documentElement.style;
+  r.setProperty('--paper', paper); r.setProperty('--tape', tape); r.setProperty('--accent', accent);
+  r.setProperty('--op', (cfg.opacity||92)/100);
+}
+
+async function fetchDay(d) {
+  const key = ymd(d);
+  if (!cache[key]) {
+    const [m, s] = await Promise.all([api.meals(key), api.schedule(ym(d))]);
+    cache[key] = { meals: m, sched: s.rows[key] || [], err: m.error || s.error };
+  }
+  return cache[key];
+}
+
+async function load(force) {
+  if (force) Object.keys(cache).forEach(k => delete cache[k]);
+  const dateEl = document.getElementById('date');
+  dateEl.textContent = `${cur.getMonth()+1}월 ${cur.getDate()}일 (${W[cur.getDay()]})`;
+  dateEl.classList.toggle('today', isToday(cur));
+  const body = document.getElementById('body');
+  if (!cfg.apiKey || !cfg.school) { body.innerHTML = '<div class="empty">⚙ 설정에서 인증키와 학교를 먼저 저장해 주세요</div>'; fit(); return; }
+  body.innerHTML = '<div class="empty">불러오는 중…</div>';
+  const data = await fetchDay(cur);
+  let html = '';
+  if (data.err) html += `<div class="err">⚠ ${data.err}</div>`;
+  const meals = data.meals.rows.filter(m => cfg.mealTypes[m.typeCode]);
+  let hasWarn = false;
+  if (!meals.length) html += '<div class="empty">급식이 없는 날이에요 🍃</div>';
+  meals.forEach(m => {
+    html += `<div class="meal"><h3>${MEAL_ICON[m.typeCode]||'🍽'} ${m.type}</h3>`;
+    m.dishes.forEach(d => {
+      const hit = d.allergy.some(a => cfg.allergies.includes(a));
+      if (hit) hasWarn = true;
+      const nums = cfg.showAllergy ? d.allergy : d.allergy.filter(a => cfg.allergies.includes(a));
+      const tip = d.allergy.map(a => `${a} ${ALLERGY[a]||''}`).join(', ');
+      html += `<div class="dish ${hit?'warn':''}" title="${tip}"><span>${d.name}</span>${nums.length?`<small>(${nums.join('.')})</small>`:''}</div>`;
+    });
+    if (cfg.showCal && m.cal) html += `<div class="cal">${m.cal}</div>`;
+    if (m.origin.length || m.nutrition.length) {
+      const id = 'dt' + m.typeCode;
+      html += `<button class="more" onclick="document.getElementById('${id}').classList.toggle('open');fit()">재료·원산지 보기 ▾</button>
+        <div class="detail ${cfg.expandOrigin?'open':''}" id="${id}">${m.origin.length?'<b>원산지</b> '+m.origin.join(' · ')+'<br>':''}${m.nutrition.length?'<b>영양</b> '+m.nutrition.join(' · '):''}</div>`;
+    }
+    html += '</div>';
+  });
+  const ev = data.sched.filter(e => !cfg.gradeFilter || !e.grades.length || e.grades.includes(+cfg.gradeFilter));
+  if (ev.length) {
+    html += `<div class="sched"><h3>📅 ${isToday(cur)?'오늘의':'이날의'} 일정</h3>`;
+    ev.forEach(e => html += `<div class="ev">${e.name}${e.grades.length&&e.grades.length<6?`<small>${e.grades.join('·')}학년</small>`:''}${e.kind&&e.kind!=='해당없음'?`<small>${e.kind}</small>`:''}</div>`);
+    html += '</div>';
+  }
+  body.innerHTML = html;
+  document.getElementById('note').textContent = hasWarn ? '알레르기 있는 메뉴는 빨갛게 ⚠' : (meals.length ? `${new Date().getMonth()+1}-${String(new Date().getDate()).padStart(2,'0')} ${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')} 기준` : '');
+  document.getElementById('note').className = hasWarn ? 'warnnote' : '';
+  fit();
+}
+
+function fit() { requestAnimationFrame(() => api.resize(document.getElementById('paper').offsetHeight + 24)); }
+function move(n) { cur.setDate(cur.getDate() + n); if (calMonth) { calMonth = new Date(cur.getFullYear(), cur.getMonth(), 1); renderCal(); } load(); }
+
+// ---- 달력 ----
+async function toggleCal() {
+  const c = document.getElementById('calendar');
+  if (c.classList.contains('open')) { c.classList.remove('open'); fit(); return; }
+  calMonth = new Date(cur.getFullYear(), cur.getMonth(), 1);
+  c.classList.add('open'); await renderCal(); fit();
+}
+async function renderCal() {
+  const c = document.getElementById('calendar');
+  const y = calMonth.getFullYear(), m = calMonth.getMonth();
+  const key = `${y}${String(m+1).padStart(2,'0')}`;
+  if (!cache['cal'+key]) {
+    const [md, sc] = await Promise.all([api.mealDays(key), api.schedule(key)]);
+    cache['cal'+key] = { meal: new Set(md.rows), event: new Set(Object.keys(sc.rows)) };
+  }
+  const info = cache['cal'+key];
+  let h = `<div class="cal-h"><button class="nav" onclick="calMove(-1)">‹</button><span>${y}년 ${m+1}월</span><button class="nav" onclick="calMove(1)">›</button></div><div class="grid">`;
+  W.forEach(w => h += `<div class="w">${w}</div>`);
+  const first = new Date(y, m, 1).getDay(), days = new Date(y, m+1, 0).getDate();
+  for (let i=0;i<first;i++) h += '<div></div>';
+  for (let d=1; d<=days; d++) {
+    const dt = new Date(y, m, d), k = ymd(dt);
+    const cls = ['d', dt.getDay()===0?'sun':dt.getDay()===6?'sat':'', info.meal.has(k)?'meal':'', info.event.has(k)?'event':'', k===ymd(cur)?'sel':'', isToday(dt)?'today':''].join(' ');
+    h += `<div class="${cls}" onclick="pick(${y},${m},${d})">${d}</div>`;
+  }
+  c.innerHTML = h + '</div>';
+}
+function calMove(n) { calMonth.setMonth(calMonth.getMonth()+n); renderCal().then(fit); }
+function pick(y,m,d) { cur = new Date(y,m,d); document.getElementById('calendar').classList.remove('open'); load(); }
+
+// ---- 초기화 ----
+(async () => {
+  cfg = await api.getConfig(); applyTheme(); load();
+  api.onRefresh(() => { cur = new Date(); load(true); });
+  api.onConfigChanged(c => { cfg = c; applyTheme(); load(true); });
+})();
+</script>
+</body>
+</html>
