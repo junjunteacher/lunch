@@ -118,7 +118,7 @@ async function load(force) {
   dateEl.textContent = `${cur.getMonth()+1}월 ${cur.getDate()}일 (${W[cur.getDay()]})`;
   dateEl.classList.toggle('today', isToday(cur));
   const body = document.getElementById('body');
-  if (!cfg.apiKey || !cfg.school) { body.innerHTML = '<div class="empty">⚙ 설정에서 인증키와 학교를 먼저 저장해 주세요</div>'; fit(); return; }
+  if (!cfg.school) { body.innerHTML = '<div class="empty">⚙ 설정에서 학교를 먼저 저장해 주세요</div>'; fit(); return; }
   body.innerHTML = '<div class="empty">불러오는 중…</div>';
   const data = await fetchDay(cur);
   let html = '';

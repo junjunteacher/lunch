@@ -2,6 +2,7 @@
 const { net } = require('electron');
 
 const BASE = 'https://open.neis.go.kr/hub';
+const DEFAULT_KEY = '861e5af3e4a04203be96df66d5435204';
 
 function get(path, params) {
   const url = new URL(BASE + path);
@@ -35,7 +36,7 @@ function unpack(json, name) {
   return { rows: block[1]?.row || [] };
 }
 
-const common = (key) => ({ KEY: key, Type: 'json', pIndex: 1, pSize: 100 });
+const common = (key) => ({ KEY: key || DEFAULT_KEY, Type: 'json', pIndex: 1, pSize: 100 });
 
 async function searchSchool(key, name) {
   const j = await get('/schoolInfo', { ...common(key), SCHUL_NM: name });

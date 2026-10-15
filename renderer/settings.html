@@ -37,17 +37,10 @@
 <body>
 <div class="wrap">
   <div class="tabs">
-    <button class="on" data-t="key">인증키</button><button data-t="school">학교</button><button data-t="view">표시</button><button data-t="allergy">알레르기</button>
+    <button class="on" data-t="school">학교</button><button data-t="view">표시</button><button data-t="allergy">알레르기</button>
   </div>
 
-  <div class="pane on" id="p-key">
-    <fieldset><legend>NEIS 인증키</legend>
-      <input type="text" id="apiKey" placeholder="나이스 교육정보 개방포털에서 발급받은 인증키">
-      <div class="help"><a href="#" onclick="api.openExternal('https://open.neis.go.kr/portal/guide/actKeyPage.do');return false">open.neis.go.kr → 인증키 신청</a>에서 무료로 발급받을 수 있어요. 키는 내 컴퓨터에만 저장됩니다.</div>
-    </fieldset>
-  </div>
-
-  <div class="pane" id="p-school">
+  <div class="pane on" id="p-school">
     <fieldset><legend>학교 검색</legend>
       <div class="row"><input type="text" id="q" placeholder="학교 이름 (예: 성덕고)"><button class="btn" id="btnSearch" style="flex:0 0 auto">검색</button></div>
       <div class="list" id="result" style="display:none"></div>
@@ -100,11 +93,10 @@ $('allergy').innerHTML = Object.entries(ALLERGY).map(([n, k]) => `<label><input 
 function showSchool() { $('chosen').innerHTML = school ? `<b>${school.name}</b> <small>${school.officeName} · ${school.kind}</small><br><small>${school.addr||''}</small>` : '선택된 학교 없음'; }
 
 $('btnSearch').onclick = async () => {
-  const key = $('apiKey').value.trim(), q = $('q').value.trim();
-  if (!key) return msg('인증키 탭에서 인증키를 먼저 입력하세요', true);
+  const q = $('q').value.trim();
   if (!q) return;
   $('btnSearch').disabled = true;
-  const r = await api.searchSchool(key, q);
+  const r = await api.searchSchool(q);
   $('btnSearch').disabled = false;
   if (r.error) return msg('검색 실패: ' + r.error, true);
   const box = $('result'); box.style.display = 'block';
@@ -118,7 +110,7 @@ function msg(t, err) { const m = $('msg'); m.textContent = t; m.className = 'msg
 
 $('save').onclick = async () => {
   const patch = {
-    apiKey: $('apiKey').value.trim(), school,
+    school,
     mealTypes: { 1: $('m1').checked, 2: $('m2').checked, 3: $('m3').checked },
     gradeFilter: +$('gradeFilter').value,
     showCal: $('showCal').checked, showAllergy: $('showAllergy').checked, expandOrigin: $('expandOrigin').checked,
@@ -126,21 +118,19 @@ $('save').onclick = async () => {
     alwaysOnTop: $('alwaysOnTop').checked, showOnStart: $('showOnStart').checked,
     allergies: [...document.querySelectorAll('.al:checked')].map(c => +c.value),
   };
-  if (!patch.apiKey) return msg('인증키를 입력하세요', true);
   if (!patch.school) return msg('학교를 선택하세요', true);
   await api.setConfig(patch);
-  msg('저장했어요 🎉'); setTimeout(() => api.closeSettings(), 500);
+  api.clearCache(); msg('저장했어요 🎉'); setTimeout(() => api.closeSettings(), 500);
 };
 
 (async () => {
   cfg = await api.getConfig(); school = cfg.school;
-  $('apiKey').value = cfg.apiKey || ''; showSchool();
+  showSchool();
   [1,2,3].forEach(n => $('m'+n).checked = !!cfg.mealTypes[n]);
   $('gradeFilter').value = cfg.gradeFilter || 0;
   ['showCal','showAllergy','expandOrigin','alwaysOnTop','showOnStart'].forEach(k => $(k).checked = !!cfg[k]);
   $('color').value = cfg.color; $('opacity').value = cfg.opacity; $('opv').textContent = cfg.opacity;
   document.querySelectorAll('.al').forEach(c => c.checked = cfg.allergies.includes(+c.value));
-  if (!cfg.school) document.querySelector('[data-t=school]').click();
 })();
 </script>
 </body>

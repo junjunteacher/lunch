@@ -3,7 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', {
   getConfig: () => ipcRenderer.invoke('config:get'),
   setConfig: (patch) => ipcRenderer.invoke('config:set', patch),
-  searchSchool: (key, name) => ipcRenderer.invoke('neis:searchSchool', key, name),
+  searchSchool: (name) => ipcRenderer.invoke('neis:searchSchool', name),
+  clearCache: () => ipcRenderer.send('cache:clear'),
   meals: (ymd) => ipcRenderer.invoke('neis:meals', ymd),
   mealDays: (yyyymm) => ipcRenderer.invoke('neis:mealDays', yyyymm),
   schedule: (yyyymm) => ipcRenderer.invoke('neis:schedule', yyyymm),

@@ -6,7 +6,6 @@ const neis = require('./neis');
 // ---------- 설정 저장 (userData/config.json) ----------
 const CONFIG_PATH = () => path.join(app.getPath('userData'), 'config.json');
 const DEFAULTS = {
-  apiKey: '',
   school: null,                          // {code,name,office,officeName,kind}
   mealTypes: { 1: true, 2: true, 3: true },  // 조식/중식/석식
   gradeFilter: 0,                        // 0=전체
@@ -43,7 +42,7 @@ function createPostit() {
   postit.on('moved', remember); postit.on('resized', remember);
   postit.on('close', e => { if (!app.isQuiting) { e.preventDefault(); postit.hide(); } });
   postit.webContents.on('did-finish-load', () => {
-    if (!config.apiKey || !config.school) openSettings();
+    if (!config.school) openSettings();
   });
 }
 
@@ -65,7 +64,7 @@ function createTray() {
   tray.setToolTip('급식쪽지 — made by junjunT');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '쪽지 보이기/숨기기', click: toggle },
-    { label: '지금 갱신', click: () => postit?.webContents.send('refresh') },
+    { label: '지금 갱신', click: () => { cache = {}; postit?.webContents.send('refresh'); } },
     { label: '설정…', click: openSettings },
     { type: 'separator' },
     { label: '종료', click: () => { app.isQuiting = true; app.quit(); } },
@@ -90,10 +89,27 @@ ipcMain.handle('config:set', (_, patch) => {
   }
   return config;
 });
-ipcMain.handle('neis:searchSchool', (_, key, name) => neis.searchSchool(key, name).catch(e => ({ rows: [], error: e.message })));
-ipcMain.handle('neis:meals', (_, ymd) => config.school ? neis.meals(config.apiKey, config.school.office, config.school.code, ymd).catch(e => ({ rows: [], error: e.message })) : { rows: [] });
-ipcMain.handle('neis:mealDays', (_, yyyymm) => config.school ? neis.mealDays(config.apiKey, config.school.office, config.school.code, yyyymm).catch(e => ({ rows: [], error: e.message })) : { rows: [] });
-ipcMain.handle('neis:schedule', (_, yyyymm) => config.school ? neis.schedule(config.apiKey, config.school.office, config.school.code, yyyymm).catch(e => ({ rows: {}, error: e.message })) : { rows: {} });
+// ---------- 디스크 캐시 (같은 날 재호출 방지 — 인증키 하루 한도 절약) ----------
+const CACHE_PATH = () => path.join(app.getPath('userData'), 'cache.json');
+let cache = {};
+try { cache = JSON.parse(fs.readFileSync(CACHE_PATH(), 'utf8')); } catch { cache = {}; }
+const todayKey = () => new Date().toISOString().slice(0, 10);
+async function cached(key, fn) {
+  const k = `${config.school?.code}|${key}|${todayKey()}`;
+  if (cache[k]) return cache[k];
+  const v = await fn();
+  if (!v.error) {
+    Object.keys(cache).forEach(x => { if (!x.endsWith(todayKey())) delete cache[x]; });
+    cache[k] = v;
+    try { fs.writeFileSync(CACHE_PATH(), JSON.stringify(cache)); } catch {}
+  }
+  return v;
+}
+ipcMain.handle('neis:searchSchool', (_, name) => neis.searchSchool(null, name).catch(e => ({ rows: [], error: e.message })));
+ipcMain.handle('neis:meals', (_, ymd) => config.school ? cached('meal' + ymd, () => neis.meals(null, config.school.office, config.school.code, ymd).catch(e => ({ rows: [], error: e.message }))) : { rows: [] });
+ipcMain.handle('neis:mealDays', (_, yyyymm) => config.school ? cached('days' + yyyymm, () => neis.mealDays(null, config.school.office, config.school.code, yyyymm).catch(e => ({ rows: [], error: e.message }))) : { rows: [] });
+ipcMain.handle('neis:schedule', (_, yyyymm) => config.school ? cached('sched' + yyyymm, () => neis.schedule(null, config.school.office, config.school.code, yyyymm).catch(e => ({ rows: {}, error: e.message }))) : { rows: {} });
+ipcMain.on('cache:clear', () => { cache = {}; try { fs.unlinkSync(CACHE_PATH()); } catch {} });
 ipcMain.on('win:openSettings', openSettings);
 ipcMain.on('win:hide', () => postit?.hide());
 ipcMain.on('win:closeSettings', () => settingsWin?.close());

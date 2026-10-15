@@ -1,7 +1,7 @@
 {
   "name": "gupsik-jjokji",
   "productName": "급식쪽지",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "오늘 급식과 학사일정을 바탕화면 포스트잇으로 보여주는 프로그램 (made by junjunT)",
   "author": "junjunT",
   "license": "MIT",
@@ -9,7 +9,7 @@
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder",
-    "dist:win": "electron-builder --win",
+    "dist:win": "electron-builder --win --publish never",
     "dist:mac": "electron-builder --mac",
     "dist:linux": "electron-builder --linux"
   },
@@ -20,16 +20,57 @@
   "build": {
     "appId": "kr.junjunt.gupsikjjokji",
     "productName": "급식쪽지",
-    "artifactName": "급식쪽지-${version}-${os}.${ext}",
-    "files": ["main.js", "preload.js", "neis.js", "renderer/**", "build/icon.png"],
-    "directories": { "output": "release" },
-        "win": { "target": [
-      { "target": "nsis", "arch": ["x64"] },
-      { "target": "portable", "arch": ["x64"] }
-    ], "icon": "build/icon.png" },
-    "nsis": { "artifactName": "급식쪽지-설치-${version}.${ext}", "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "급식쪽지" },
-    "portable": { "artifactName": "급식쪽지-포터블-${version}.${ext}" },
-    "mac": { "target": ["dmg"], "icon": "build/icon.png", "category": "public.app-category.utilities" },
-    "linux": { "target": ["AppImage"], "icon": "build/icon.png", "category": "Utility" }
+    "files": [
+      "main.js",
+      "preload.js",
+      "neis.js",
+      "renderer/**",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "artifactName": "급식쪽지-설치-${version}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "급식쪽지"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "build/icon.png",
+      "category": "Utility"
+    },
+    "portable": {
+      "artifactName": "급식쪽지-포터블-${version}.${ext}"
+    }
   }
 }
